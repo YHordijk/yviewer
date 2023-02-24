@@ -247,7 +247,7 @@ class Screen:
 
     def get_bond_tuples(self, mol):
         tuples = []
-        mol.guess_bonds()
+        # mol.guess_bonds()
         B = mol.bond_matrix()
         for i, a1 in enumerate(B):
             for j, a2 in enumerate(a1[i + 1:]):

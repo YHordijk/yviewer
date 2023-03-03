@@ -510,8 +510,7 @@ class Screen:
         self.handle_events(state)
 
         if state['normalmode_animation']:
-            state['normalmode_displacement'] = np.sin(
-                7 * (state['normalmode_animation_start_time'] - state['time']))
+            state['normalmode_displacement'] = np.sin(7 * (state['normalmode_animation_start_time'] - state['time']))
             nm = self.molinfo[state['molidx']]['normalmode']
             self.positions[self.mols[state['molidx']]] = list(self.original_positions_with_rot.values())[
                 state['molidx']] + state['normalmode_displacement'] * nm
@@ -615,7 +614,7 @@ class Screen:
         def stop_mode_animation():
             state['normalmode_animation'] = False
             self.positions[self.mols[state['molidx']]
-                           ] = self.original_positions[self.mols[state['molidx']]]
+                           ] = self.original_positions_with_rot[self.mols[state['molidx']]]
             state['normalmode_displacement'] = 0
 
         def copy_atoms():

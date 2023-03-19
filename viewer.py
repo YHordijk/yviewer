@@ -58,6 +58,7 @@ def screen_shot_mols(mols, simple=False, background_color=(25, 25, 25), files=No
 if __name__ == '__main__':
     files = [j(paths.test_molecules, 'h2o.xyz')]
     xyz = [molecule.load(file)['molecule'] for file in files]
+    [mol.guess_bonds() for mol in xyz]
     inf = [molecule.load(file) for file in files]
     inf[0]['reaction'] = 'testReaction'
-    show(xyz, molinfo=inf, simple=False)
+    show(xyz, molinfo=inf, simple=True, background_color=(25, 25, 25))

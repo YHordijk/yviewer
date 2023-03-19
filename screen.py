@@ -23,11 +23,8 @@ class Screen:
         self.headless = kwargs.get('headless', False)
         pg.display.init()
         if not self.headless:
-            self.main_display = pg.display.set_mode(
-                self.size, pg.locals.HWSURFACE | pg.locals.DOUBLEBUF | pg.locals.RESIZABLE)
-            self.molecule_surf = pg.surface.Surface(
-                self.size,
-                pg.locals.HWSURFACE | pg.locals.DOUBLEBUF | pg.locals.RESIZABLE | pg.locals.SRCALPHA)
+            self.main_display = pg.display.set_mode(self.size, pg.locals.HWSURFACE | pg.locals.DOUBLEBUF | pg.locals.RESIZABLE)
+            self.molecule_surf = pg.surface.Surface(self.size, pg.locals.HWSURFACE | pg.locals.DOUBLEBUF | pg.locals.RESIZABLE | pg.locals.SRCALPHA)
         else:
             self.main_display = pg.display.set_mode(self.size)
             self.molecule_surf = pg.surface.Surface(self.size)
@@ -43,8 +40,7 @@ class Screen:
 
     def prepare_atom_bonds_imgs(self, mols, pos=(.3, .3)):
         def gaussian(size, pos, m, one_dim=False):
-            x, y = np.meshgrid(np.linspace(
-                0, 1, size[1]) - pos[0], np.linspace(0, 1, size[0]) - pos[1])
+            x, y = np.meshgrid(np.linspace(0, 1, size[1]) - pos[0], np.linspace(0, 1, size[0]) - pos[1])
             if one_dim:
                 dst = np.sqrt(y * y)
             else:
@@ -58,15 +54,13 @@ class Screen:
             atom_img = np.zeros((r, r))
 
             # draw circle
-            rr, cc = skimage.draw.disk(
-                (int(r / 2), int(r / 2)), int(r / 2), shape=(r, r))
+            rr, cc = skimage.draw.disk((int(r / 2), int(r / 2)), int(r / 2), shape=(r, r))
             atom_img[rr, cc] = 1
 
             # add gaussians as highlight
             gauss1 = gaussian((r, r), pos, .25)
             gauss2 = 0.5 * gaussian((r, r), pos, .75)
-            gauss = (gauss1 + gauss2) / np.max(gauss1 +
-                                               gauss2)  # double gaussian highlight
+            gauss = (gauss1 + gauss2) / np.max(gauss1 + gauss2)  # double gaussian highlight
 
             # define surface to draw atom_img to
             surf = pg.surface.Surface((r, r))
@@ -76,6 +70,7 @@ class Screen:
             pg.pixelcopy.array_to_surface(surf, a + a * 256 + a * 256 * 256)
             atom_img = surf
 
+            # atom_img.set_colorkey(self.background_color)
             atom_img.set_colorkey((0, 0, 0))
             atom_img.fill(c, special_flags=pg.locals.BLEND_RGB_MULT)
 

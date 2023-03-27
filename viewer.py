@@ -1,6 +1,6 @@
 import os
 from yviewer.utility import paths
-from yutility import molecule
+from yutility import molecule, timer
 import yviewer.screen as screen
 import pygame as pg
 
@@ -56,9 +56,10 @@ def screen_shot_mols(mols, simple=False, background_color=(25, 25, 25), files=No
 
 
 if __name__ == '__main__':
-    files = [j(paths.test_molecules, 'h2o.xyz')]
+    files = [j(paths.test_molecules, 'batrachotoxin.xyz')]
     xyz = [molecule.load(file)['molecule'] for file in files]
     [mol.guess_bonds() for mol in xyz]
     inf = [molecule.load(file) for file in files]
     inf[0]['reaction'] = 'testReaction'
-    show(xyz, molinfo=inf, simple=True, background_color=(25, 25, 25))
+    show(xyz, molinfo=inf, simple=False, background_color=(25, 25, 25))
+    timer.print_timings()

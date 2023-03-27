@@ -7,7 +7,7 @@ import skimage.draw
 import matplotlib.pyplot as plt
 from time import perf_counter
 from math import cos, sin
-from yutility import geometry, molecule
+from yutility import geometry, molecule, timer
 import pyperclip
 
 
@@ -24,10 +24,10 @@ class Screen:
         pg.display.init()
         if not self.headless:
             self.main_display = pg.display.set_mode(self.size, pg.locals.HWSURFACE | pg.locals.DOUBLEBUF | pg.locals.RESIZABLE)
-            self.molecule_surf = pg.surface.Surface(self.size, pg.locals.HWSURFACE | pg.locals.DOUBLEBUF | pg.locals.RESIZABLE | pg.locals.SRCALPHA)
+            self.molecule_surf = pg.surface.Surface(self.size, pg.locals.HWSURFACE | pg.locals.DOUBLEBUF | pg.locals.RESIZABLE | pg.locals.SRCALPHA).convert()
         else:
             self.main_display = pg.display.set_mode(self.size)
-            self.molecule_surf = pg.surface.Surface(self.size)
+            self.molecule_surf = pg.surface.Surface(self.size).convert()
         self.camera_position = [0, 0]
         self.camera_orientation = [0, 0, 0]
         self.camera_z = 6
@@ -38,6 +38,7 @@ class Screen:
         self.hide_hydrogens = kwargs.get('hide_hydrogens', False)
         self.set_projection_plane()
 
+    @timer.time
     def prepare_atom_bonds_imgs(self, mols, pos=(.3, .3)):
         def gaussian(size, pos, m, one_dim=False):
             x, y = np.meshgrid(np.linspace(0, 1, size[1]) - pos[0], np.linspace(0, 1, size[0]) - pos[1])
@@ -88,8 +89,7 @@ class Screen:
 
             gauss1 = gaussian(half_size, (.5 / 2, .5), .25, one_dim=True)
             gauss2 = 0.5 * gaussian(half_size, (.5 / 2, .5), .75, one_dim=True)
-            gauss = (gauss1 + gauss2) / np.max(gauss1 +
-                                               gauss2)  # double gaussian highlight
+            gauss = (gauss1 + gauss2) / np.max(gauss1 + gauss2)  # double gaussian highlight
 
             surf = pg.surface.Surface(size, pg.locals.SRCALPHA)
             # surf.fill(self.background_color)
@@ -290,8 +290,9 @@ class Screen:
             self.update(state)
             self.post_update(state)
 
-            md.blit(ms, (0, 0))
-            pg.display.update()
+            with timer.Timer('blit and update'):
+                md.blit(ms, (0, 0))
+                pg.display.update()
 
             if not loop:
                 return
@@ -381,103 +382,84 @@ class Screen:
             ra = mapped_positions[tuples[:, 0]]
             rb = mapped_positions[tuples[:, 1]]
             rabn = (rb - ra)
-            rabn2 = np.clip(rabn**2, 0, 2**16)
-            rabn2sum = np.sum(rabn2, axis=1)
-            # bond_dist = np.sqrt(rabn2sum).astype(int)
             B = mol.bond_matrix()
 
             atom_indices_in_blits = [i for i in idx]
-            for i, bond in enumerate(self.bond_tuples[mol]):
-                try:
-                    a, b = bond
+            for i, (a, b) in enumerate(self.bond_tuples[mol]):
+                n1 = atn[a]
+                n2 = atn[b]
 
-                    n1 = atn[a]
-                    n2 = atn[b]
+                if self.hide_hydrogens:
+                    if n1 == 1 or n2 == 1:
+                        continue
 
-                    if self.hide_hydrogens:
-                        if n1 == 1 or n2 == 1:
-                            continue
+                radius = int((r[b] + r[a]) / 5)
 
-                    radius = int((r[b] + r[a]) / 5)
+                pab = (pos[b] - pos[a])
+                npab = pab / np.linalg.norm(pab)
+                X = pos[a] + npab * radii[a] * atom_radius_factor
+                mapped_on_sphere1 = self.project(X)[0]
+                X = pos[b] - npab * radii[b] * atom_radius_factor
+                mapped_on_sphere2 = self.project(X)[0]
+                mapped_bond_dist = np.linalg.norm(mapped_on_sphere1 - mapped_on_sphere2)
+                bond_len = max(0, mapped_bond_dist)
 
-                    pab = (pos[b] - pos[a])
-                    npab = pab / np.linalg.norm(pab)
-                    X = pos[a] + npab * radii[a] * atom_radius_factor
-                    mapped_on_sphere1 = self.project(X)[0]
-                    X = pos[b] - npab * radii[b] * atom_radius_factor
-                    mapped_on_sphere2 = self.project(X)[0]
+                if bond_len > 0:
+                    bond_center = mapped_positions[a] + (mapped_positions[b] - mapped_positions[a]) / 2
+                    new_scale = (int(radius * B[a, b]), int(bond_len))
+                    if B[a, b] == 1:
+                        bond_img = self.single_bond_imgs[molidx][(
+                            n1, n2)].copy()
+                    if B[a, b] == 1.5:
+                        bond_img = self.aromatic_bond_imgs[molidx][(
+                            n1, n2)].copy()
+                    if B[a, b] == 2:
+                        bond_img = self.double_bond_imgs[molidx][(
+                            n1, n2)].copy()
+                    if B[a, b] == 3:
+                        bond_img = self.triple_bond_imgs[molidx][(
+                            n1, n2)].copy()
 
-                    # new_scale = (radius * B[a,b], np.clip(bond_dist[i], 0, self.size[0]))
-                    # new_scale = (radius * B[a,b], np.clip(int(np.linalg.norm(mapped_on_sphere2 - mapped_on_sphere1)), 0, self.size[0]))
-                    mapped_bond_dist = np.linalg.norm(
-                        mapped_on_sphere1 - mapped_on_sphere2)
-                    # Rab = (mapped_positions[a] - mapped_positions[b])
-                    # mapped_bond_dist = np.linalg.norm(Rab)
-                    bond_len = max(0, mapped_bond_dist)
+                    new_scale = (
+                        max(1, new_scale[0]), max(1, new_scale[1]))
+                    if smooth_bonds:
+                        bond_img = pg.transform.smoothscale(
+                            bond_img, new_scale)
+                    else:
+                        bond_img = pg.transform.scale(bond_img, new_scale)
 
-                    if bond_len > 0:
-                        bond_dir = (
-                            mapped_on_sphere1 - mapped_on_sphere2) / bond_len
-                        bond_center = mapped_positions[a] + \
-                            (mapped_positions[b] - mapped_positions[a]) / 2
-                        new_scale = (int(radius * B[a, b]), int(bond_len))
-                        # bond_pos = mapped_positions[a] + bond_dir * r[a]
-                        if B[a, b] == 1:
-                            bond_img = self.single_bond_imgs[molidx][(
-                                n1, n2)].copy()
-                        if B[a, b] == 1.5:
-                            bond_img = self.aromatic_bond_imgs[molidx][(
-                                n1, n2)].copy()
-                        if B[a, b] == 2:
-                            bond_img = self.double_bond_imgs[molidx][(
-                                n1, n2)].copy()
-                        if B[a, b] == 3:
-                            bond_img = self.triple_bond_imgs[molidx][(
-                                n1, n2)].copy()
+                    # insert the bond_img in the right place (after
+                    # furthest atom)
+                    ai = atom_indices_in_blits.index(a)
+                    bi = atom_indices_in_blits.index(b)
+                    index = ai if ai < bi else bi
+                    atom_indices_in_blits.insert(index, None)
 
-                        new_scale = (
-                            max(1, new_scale[0]), max(1, new_scale[1]))
-                        if smooth_bonds:
-                            bond_img = pg.transform.smoothscale(
-                                bond_img, new_scale)
-                        else:
-                            bond_img = pg.transform.scale(bond_img, new_scale)
+                    angle = pg.math.Vector2([0, 1]).angle_to(rabn[i])
+                    im, p = rotate_image(
+                        bond_img, mapped_on_sphere1, (bond_img.get_width() / 2, 0), -angle)
+                    if draw_bond_rect:
+                        pg.draw.rect(
+                            self.molecule_surf, (0, 255, 0), p, width=2)
 
-                        # insert the bond_img in the right place (after
-                        # furthest atom)
-                        ai = atom_indices_in_blits.index(a)
-                        bi = atom_indices_in_blits.index(b)
-                        index = ai if ai < bi else bi
-                        atom_indices_in_blits.insert(index, None)
+                    if self.show_fig:
+                        plt.imshow(pg.PixelArray(im).transpose())
+                        plt.show()
 
-                        angle = pg.math.Vector2([0, 1]).angle_to(rabn[i])
-                        im, p = rotate_image(
-                            bond_img, mapped_on_sphere1, (bond_img.get_width() / 2, 0), -angle)
-                        if draw_bond_rect:
-                            pg.draw.rect(
-                                self.molecule_surf, (0, 255, 0), p, width=2)
-
-                        if self.show_fig:
-                            plt.imshow(pg.PixelArray(im).transpose())
-                            plt.show()
-
-                        if not simple_bonds:
-                            blits.insert(index + 1, (im, p.topleft))
-                        else:
-                            pg.draw.line(
-                                self.molecule_surf, (255, 255, 255), ra[i], rb[i], width=2)
-
-                    if draw_bond_through_atom:
+                    if not simple_bonds:
+                        blits.insert(index + 1, (im, p.topleft))
+                    else:
                         pg.draw.line(
-                            self.molecule_surf, (255, 0, 255), ra[i], mapped_on_sphere1, width=5)
-                        pg.draw.line(
-                            self.molecule_surf, (255, 0, 255), rb[i], mapped_on_sphere2, width=5)
-                    if draw_bond_center:
-                        pg.draw.circle(
-                            self.molecule_surf, (255, 255, 255), bond_center, 10)
+                            self.molecule_surf, (255, 255, 255), ra[i], rb[i], width=2)
 
-                except BaseException:
-                    raise
+                if draw_bond_through_atom:
+                    pg.draw.line(
+                        self.molecule_surf, (255, 0, 255), ra[i], mapped_on_sphere1, width=5)
+                    pg.draw.line(
+                        self.molecule_surf, (255, 0, 255), rb[i], mapped_on_sphere2, width=5)
+                if draw_bond_center:
+                    pg.draw.circle(
+                        self.molecule_surf, (255, 255, 255), bond_center, 10)
 
         self.molecule_surf.blits([blit for blit in blits if blit is not None])
 
@@ -497,6 +479,7 @@ class Screen:
         state['normalmode_displacement'] = 0
         state['normalmode_animation_start_time'] = 0
 
+    @timer.time
     def pre_update(self, state):
         state['start_time'] = perf_counter()
         state['keys'] = pg.key.get_pressed()
@@ -510,6 +493,7 @@ class Screen:
             self.positions[self.mols[state['molidx']]] = list(self.original_positions_with_rot.values())[
                 state['molidx']] + state['normalmode_displacement'] * nm
 
+    @timer.time
     def update(self, state):
         # if hasattr(state['main_mol'], 'frames'):
         #   i = state.get('mol_frame_i', 0)
@@ -547,7 +531,7 @@ class Screen:
             try:
                 font = pg.font.SysFont(None, 24)
                 text = font.render(
-                    f"[CTRL + C] to copy coordinates", True, (255, 255, 255, 255))
+                    "[CTRL + C] to copy coordinates", True, (255, 255, 255, 255))
                 self.molecule_surf.blit(text, (20, self.size[1] - 40))
             except BaseException:
                 pass
@@ -585,6 +569,7 @@ class Screen:
             except BaseException:
                 pass
 
+    @timer.time
     def post_update(self, state):
         state['rotation'] = state['rotation'] + state['rot']
         state['rot'] = state['rot'] * 0.8
@@ -601,6 +586,7 @@ class Screen:
         # self.camera_position = [sin(state['time']*10), cos(state['time']*10)]
         state['prev_keys'] = state['keys']
 
+    @timer.time
     def handle_events(self, state):
         def start_mode_animation():
             state['normalmode_animation'] = True

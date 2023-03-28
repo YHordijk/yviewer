@@ -1,6 +1,6 @@
 import os
 import periodictable as pt
-from yviewer.utility import paths
+from utility import paths
 
 j = os.path.join
 

@@ -1,8 +1,9 @@
 import os
-from yviewer.utility import paths
-from yutility import molecule, timer
-import yviewer.screen as screen
+import screen as screen
 import pygame as pg
+pg.display.set_icon(pg.image.load('icon.tiff'))
+# import pdb
+# pdb.set_trace() 
 
 j = os.path.join
 
@@ -16,19 +17,18 @@ def show(mols=[], molinfo=None, simple=False, debug=False, background_color=(25,
     else:
         if simple:
             scr.draw_mode = 'simple'
-    # [mol.center() for mol in mols]
     scr.draw_molecules(mols, molinfo=molinfo)
 
 
-def show_results(results, simple=False):
-    # mols = [r.get_aligned_mol() for r in results]
-    mols = [r.get_mol() for r in results]
-    # [print(mol) for mol in mols]
-    mols = [molecule.load_plams_molecule(m)[0] for m in mols]
-    scr = screen.Screen(size=(1600, 900))
-    if simple:
-        scr.draw_mode = 'simple'
-    scr.draw_molecules(mols, loop=False)
+# def show_results(results, simple=False):
+#     # mols = [r.get_aligned_mol() for r in results]
+#     mols = [r.get_mol() for r in results]
+#     # [print(mol) for mol in mols]
+#     mols = [molecule.load_plams_molecule(m)[0] for m in mols]
+#     scr = screen.Screen(size=(1600, 900))
+#     if simple:
+#         scr.draw_mode = 'simple'
+#     scr.draw_molecules(mols, loop=False)
 
 
 def screen_shot_mols(mols, simple=False, background_color=(25, 25, 25), files=None, overwrite=True):
@@ -56,10 +56,4 @@ def screen_shot_mols(mols, simple=False, background_color=(25, 25, 25), files=No
 
 
 if __name__ == '__main__':
-    files = [j(paths.test_molecules, 'batrachotoxin.xyz')]
-    xyz = [molecule.load(file)['molecule'] for file in files]
-    [mol.guess_bonds() for mol in xyz]
-    inf = [molecule.load(file) for file in files]
-    inf[0]['reaction'] = 'testReaction'
     show(simple=False, background_color=(25, 25, 25))
-    timer.print_timings()

@@ -9,6 +9,7 @@ from time import perf_counter
 from math import cos, sin
 from yutility import geometry, molecule, timer
 import pyperclip
+from scm import plams
 
 
 def l2_norm(u, v): return np.linalg.norm(u - v)
@@ -38,8 +39,24 @@ class Screen:
         self.hide_hydrogens = kwargs.get('hide_hydrogens', False)
         self.set_projection_plane()
 
+    def add_mol(self, mol, molinfo=None):
+        self.prepare_atom_bonds_imgs(mol)
+        self.positions[mol] = geometry.center_mol(np.array([atom.coords for atom in mol.atoms]))
+        self.original_positions[mol] = geometry.center_mol(np.array([atom.coords for atom in mol.atoms]))
+        self.bond_tuples[mol] = self.get_bond_tuples(mol)
+        self.molinfo.append(molinfo or {})
+        self.mols.append(mol)
+
+    def delete_mol(self, molidx):
+        mol = self.mols[molidx]
+        self.positions.pop(mol)
+        self.original_positions.pop(mol)
+        self.bond_tuples.pop(mol)
+        self.molinfo.pop(molidx)
+        self.mols.pop(molidx)
+
     @timer.time
-    def prepare_atom_bonds_imgs(self, mols, pos=(.3, .3)):
+    def prepare_atom_bonds_imgs(self, mol, pos=(.3, .3)):
         def gaussian(size, pos, m, one_dim=False):
             x, y = np.meshgrid(np.linspace(0, 1, size[1]) - pos[0], np.linspace(0, 1, size[0]) - pos[1])
             if one_dim:
@@ -155,39 +172,33 @@ class Screen:
 
             return surf
 
-        self.atom_imgs = []
-        self.single_bond_imgs = []
-        self.aromatic_bond_imgs = []
-        self.double_bond_imgs = []
-        self.triple_bond_imgs = []
-        for mol in mols:
-            anum = set(atom.atnum for atom in mol.atoms)
+        anum = set(atom.atnum for atom in mol.atoms)
 
-            at_imgs = {}
-            for n in anum:
-                im = generate_atom_img(n)
-                at_imgs[n] = im
+        at_imgs = {}
+        for n in anum:
+            im = generate_atom_img(n)
+            at_imgs[n] = im
 
-            single_bn_imgs = {}
-            aromatic_bn_imgs = {}
-            double_bn_imgs = {}
-            triple_bn_imgs = {}
-            for n1 in anum:
-                for n2 in anum:
-                    single_bn_imgs[(n1, n2)] = generate_single_bond_img(
-                        n1, n2, 50)
-                    aromatic_bn_imgs[(n1, n2)] = generate_aromatic_bond_img(
-                        n1, n2, 50)
-                    double_bn_imgs[(n1, n2)] = generate_double_bond_img(
-                        n1, n2, 50)
-                    triple_bn_imgs[(n1, n2)] = generate_triple_bond_img(
-                        n1, n2, 50)
+        single_bn_imgs = {}
+        aromatic_bn_imgs = {}
+        double_bn_imgs = {}
+        triple_bn_imgs = {}
+        for n1 in anum:
+            for n2 in anum:
+                single_bn_imgs[(n1, n2)] = generate_single_bond_img(
+                    n1, n2, 50)
+                aromatic_bn_imgs[(n1, n2)] = generate_aromatic_bond_img(
+                    n1, n2, 50)
+                double_bn_imgs[(n1, n2)] = generate_double_bond_img(
+                    n1, n2, 50)
+                triple_bn_imgs[(n1, n2)] = generate_triple_bond_img(
+                    n1, n2, 50)
 
-            self.atom_imgs.append(at_imgs)
-            self.single_bond_imgs.append(single_bn_imgs)
-            self.aromatic_bond_imgs.append(aromatic_bn_imgs)
-            self.double_bond_imgs.append(double_bn_imgs)
-            self.triple_bond_imgs.append(triple_bn_imgs)
+        self.atom_imgs.append(at_imgs)
+        self.single_bond_imgs.append(single_bn_imgs)
+        self.aromatic_bond_imgs.append(aromatic_bn_imgs)
+        self.double_bond_imgs.append(double_bn_imgs)
+        self.triple_bond_imgs.append(triple_bn_imgs)
 
     def get_rotation_matrix(self, x=None, y=None, z=None):
         R = np.eye(3)
@@ -252,32 +263,23 @@ class Screen:
 
     def draw_molecules(self, mols, molinfo=None,
                        settings={}, loop=True, no_text=False):
-        self.prepare_atom_bonds_imgs(mols)
-        self.positions = {mol: np.array(
-            [atom.coords for atom in mol.atoms]) for mol in mols}
-        self.positions = {
-            mol: geometry.center_mol(coords) for mol,
-            coords in self.positions.items()}
-        self.original_positions = {mol: geometry.center_mol(
-            np.array([atom.coords for atom in mol.atoms])) for mol in mols}
-        self.original_positions_with_rot = {mol: geometry.center_mol(
-            np.array([atom.coords for atom in mol.atoms])) for mol in mols}
-        self.bond_tuples = {mol: self.get_bond_tuples(mol) for mol in mols}
+        self.mols = []
+        self.atom_imgs = []
+        self.single_bond_imgs = []
+        self.aromatic_bond_imgs = []
+        self.double_bond_imgs = []
+        self.triple_bond_imgs = []
+        self.positions = {}
+        self.original_positions = {}
+        self.bond_tuples = {}
+        self.molinfo = []
         self.no_text = no_text
-        self.molinfo = molinfo
-        if not self.molinfo:
-            self.molinfo = []
-
         state = {}
         state['run'] = True
-        # state['main_mol'] = mol
         state['molidx'] = 0
-        state['mols'] = mols
-        for mol in mols:
-            self.positions[mol][:, 1] *= 1
-            self.original_positions[mol][:, 1] *= 1
-            self.original_positions_with_rot[mol][:, 1] *= 1
-        self.mols = mols
+        state['mols'] = self.mols
+
+        [self.add_mol(mol) for mol in mols]
 
         md = self.main_display
         ms = self.molecule_surf
@@ -300,8 +302,9 @@ class Screen:
         pg.display.quit()
         pg.quit()
 
-    def _prepare_molecule_surf(
-            self, molidx, smooth_bonds=False, atom_radius_factor=.5):
+    def _prepare_molecule_surf(self, molidx, smooth_bonds=False, atom_radius_factor=.5):
+        if len(self.mols) == 0:
+            return
         mol = self.mols[molidx]
 
         def rotate_image(image, pos, originPos, angle):
@@ -490,7 +493,7 @@ class Screen:
         if state['normalmode_animation']:
             state['normalmode_displacement'] = np.sin(7 * (state['normalmode_animation_start_time'] - state['time']))
             nm = self.molinfo[state['molidx']]['normalmode']
-            self.positions[self.mols[state['molidx']]] = list(self.original_positions_with_rot.values())[
+            self.positions[self.mols[state['molidx']]] = list(self.original_positions.values())[
                 state['molidx']] + state['normalmode_displacement'] * nm
 
     @timer.time
@@ -506,12 +509,12 @@ class Screen:
                 x=state['rot'][0],
                 y=state['rot'][1]) for mol,
             coords in self.positions.items()}
-        self.original_positions_with_rot = {
+        self.original_positions = {
             mol: geometry.rotate(
                 coords,
                 x=state['rot'][0],
                 y=state['rot'][1]) for mol,
-            coords in self.original_positions_with_rot.items()}
+            coords in self.original_positions.items()}
         for inf in self.molinfo:
             if 'normalmode' in inf:
                 inf['normalmode'] = geometry.rotate(
@@ -594,14 +597,33 @@ class Screen:
 
         def stop_mode_animation():
             state['normalmode_animation'] = False
-            self.positions[self.mols[state['molidx']]
-                           ] = self.original_positions_with_rot[self.mols[state['molidx']]]
+            self.positions[self.mols[state['molidx']]] = self.original_positions[self.mols[state['molidx']]]
             state['normalmode_displacement'] = 0
 
         def copy_atoms():
+            if len(self.mols) == 0:
+                return
             p = self.mols[state['molidx']]
             pyperclip.copy(molecule.get_xyz(p))
             print('Copied atoms!')
+
+        def paste_atoms():
+            data = pyperclip.paste()
+            lines = [line for line in data.splitlines() if len(line.split()) >= 4]
+            mol = plams.Molecule()
+            for line in lines:
+                el, x, y, z = line.split()
+                mol.add_atom(plams.Atom(symbol=el, coords=(x, y, z)))
+            mol.guess_bonds()
+            self.add_mol(mol)
+            if len(self.mols) > 1:
+                state['molidx'] += 1
+
+        def delete_atoms():
+            if len(self.mols) == 0:
+                return
+            self.delete_mol(state['molidx'])
+            state['molidx'] = max(0, state['molidx']-1)
 
         if state['keys'][pg.K_ESCAPE]:
             state['run'] = False
@@ -648,8 +670,14 @@ class Screen:
             else:
                 start_mode_animation()
 
-        if (state['keys'][pg.K_RCTRL] or state['keys'][pg.K_LCTRL]) and state['keys'][pg.K_c]:
+        if (state['keys'][pg.K_RCTRL] or state['keys'][pg.K_LCTRL]) and state['keys'][pg.K_c] and not state['prev_keys'][pg.K_c]:
             copy_atoms()
+
+        if (state['keys'][pg.K_RCTRL] or state['keys'][pg.K_LCTRL]) and state['keys'][pg.K_v] and not state['prev_keys'][pg.K_v]:
+            paste_atoms()
+
+        if (state['keys'][pg.K_RCTRL] or state['keys'][pg.K_LCTRL]) and state['keys'][pg.K_x] and not state['prev_keys'][pg.K_x]:
+            delete_atoms()
 
         if (state['keys'][pg.K_RCTRL] or state['keys'][pg.K_LCTRL]) and state['keys'][pg.K_h] and not state['prev_keys'][pg.K_h]:
             self.hide_hydrogens = not self.hide_hydrogens

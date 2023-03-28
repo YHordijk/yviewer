@@ -7,7 +7,7 @@ import pygame as pg
 j = os.path.join
 
 
-def show(mols, molinfo=None, simple=False, debug=False, background_color=(25, 25, 25), hide_hydrogens=False):
+def show(mols=[], molinfo=None, simple=False, debug=False, background_color=(25, 25, 25), hide_hydrogens=False):
     if not isinstance(mols, list):
         mols = [mols]
     scr = screen.Screen(size=(1600, 900), background_color=background_color, hide_hydrogens=hide_hydrogens)
@@ -61,5 +61,5 @@ if __name__ == '__main__':
     [mol.guess_bonds() for mol in xyz]
     inf = [molecule.load(file) for file in files]
     inf[0]['reaction'] = 'testReaction'
-    show(xyz, molinfo=inf, simple=False, background_color=(25, 25, 25))
+    show(simple=False, background_color=(25, 25, 25))
     timer.print_timings()

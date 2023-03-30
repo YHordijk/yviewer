@@ -1,7 +1,10 @@
 import pygame as pg
 import pygame.locals
 import numpy as np
-import data
+try:
+    import data
+except ImportError:
+    from yviewer import data
 import periodictable as pt
 import skimage.draw
 import matplotlib.pyplot as plt
@@ -44,7 +47,9 @@ class Screen:
         self.positions[mol] = geometry.center_mol(np.array([atom.coords for atom in mol.atoms]))
         self.original_positions[mol] = geometry.center_mol(np.array([atom.coords for atom in mol.atoms]))
         self.bond_tuples[mol] = self.get_bond_tuples(mol)
-        self.molinfo.append(molinfo or {})
+        if molinfo is None:
+            molinfo = {}
+        self.molinfo.append(molinfo)
         self.mols.append(mol)
 
     def delete_mol(self, molidx):
@@ -262,7 +267,7 @@ class Screen:
         return tuples
 
     def draw_molecules(self, mols, molinfo=None,
-                       settings={}, loop=True, no_text=False):
+                       settings={}, loop=True, no_text=False, update_funcs=[]):
         self.mols = []
         self.atom_imgs = []
         self.single_bond_imgs = []
@@ -274,12 +279,17 @@ class Screen:
         self.bond_tuples = {}
         self.molinfo = []
         self.no_text = no_text
+        self.update_funcs = update_funcs
         state = {}
         state['run'] = True
         state['molidx'] = 0
         state['mols'] = self.mols
+        state['molinfo'] = self.molinfo
 
-        [self.add_mol(mol) for mol in mols]
+        if molinfo is None:
+            molinfo = [None for _ in mols]
+
+        [self.add_mol(mol, molinfo=inf) for mol, inf in zip(mols, molinfo)]
 
         md = self.main_display
         ms = self.molecule_surf
@@ -498,6 +508,7 @@ class Screen:
 
     @timer.time
     def update(self, state):
+        [func(state) for func in self.update_funcs]
         # if hasattr(state['main_mol'], 'frames'):
         #   i = state.get('mol_frame_i', 0)
         #   i = i % len(state['main_mol'].frames)
@@ -612,7 +623,7 @@ class Screen:
             lines = [line for line in data.splitlines() if len(line.split()) >= 4]
             mol = plams.Molecule()
             for line in lines:
-                el, x, y, z = line.split()
+                el, x, y, z = line.split()[:4]
                 mol.add_atom(plams.Atom(symbol=el, coords=(x, y, z)))
             mol.guess_bonds()
             self.add_mol(mol)

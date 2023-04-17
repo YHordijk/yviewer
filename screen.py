@@ -619,8 +619,9 @@ class Screen:
             print('Copied atoms!')
 
         def paste_atoms():
-            data = pyperclip.paste()
+            data = pyperclip.paste().replace('\\n', '\n')
             lines = [line for line in data.splitlines() if len(line.split()) >= 4]
+
             mol = plams.Molecule()
             for line in lines:
                 el, x, y, z = line.split()[:4]

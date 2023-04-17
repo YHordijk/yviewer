@@ -45,6 +45,7 @@ def screen_shot_mols(mols, simple=False, background_color=(25, 25, 25), files=No
             900),
         background_color=background_color,
         headless=True)
+    
     if simple:
         scr.draw_mode = 'simple'
     for i, mol in enumerate(mols):

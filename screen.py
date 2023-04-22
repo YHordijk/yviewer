@@ -244,17 +244,13 @@ class Screen:
                              (points * 100 + self.camera_position).T)).T.astype(int)
 
         if mode == 'perspective':
-            d = self.get_rotation_matrix(*
-                                         self.camera_orientation) @ (points -
-                                                                     np.asarray([*
-                                                                                 self.camera_position, self.camera_z])).T
+            d = self.get_rotation_matrix(*self.camera_orientation) @ (points - np.asarray([*self.camera_position, self.camera_z])).T
             f = self.projection_plane @ d
             return np.vstack((f[0] / f[2], f[1] / f[2])).T.astype(int)
 
     def set_projection_plane(self):
         e = np.array([self.size[0] / 2, self.size[1] / 2, 600])
-        self.projection_plane = np.array(
-            [[1, 0, e[0] / e[2]], [0, 1, e[1] / e[2]], [0, 0, 1 / e[2]]])
+        self.projection_plane = np.array([[1, 0, e[0] / e[2]], [0, 1, e[1] / e[2]], [0, 0, 1 / e[2]]])
 
     def get_bond_tuples(self, mol):
         tuples = []
@@ -355,8 +351,7 @@ class Screen:
         blits = []
         pos = self.positions[mol].copy()
         pos[:, 1] *= -1
-        dist_to_cam = np.sqrt(
-            np.sum((pos - (*self.camera_position, self.camera_z))**2, axis=1))
+        dist_to_cam = np.sqrt(np.sum((pos - (*self.camera_position, self.camera_z))**2, axis=1))
         idx = np.argsort(dist_to_cam)[::-1]
         atn = [atom.atnum for atom in mol.atoms]
         atcolours = [data.ATOM_COLOURS[n] for n in atn]
@@ -433,8 +428,7 @@ class Screen:
                         bond_img = self.triple_bond_imgs[molidx][(
                             n1, n2)].copy()
 
-                    new_scale = (
-                        max(1, new_scale[0]), max(1, new_scale[1]))
+                    new_scale = (max(1, new_scale[0]), max(1, new_scale[1]))
                     if smooth_bonds:
                         bond_img = pg.transform.smoothscale(
                             bond_img, new_scale)
@@ -514,23 +508,17 @@ class Screen:
         #   i = i % len(state['main_mol'].frames)
         #   state['main_mol'].positions = state['main_mol'].frames[i]
         #   state['mol_frame_i'] = i + 1
-        self.positions = {
-            mol: geometry.rotate(
-                coords,
-                x=state['rot'][0],
-                y=state['rot'][1]) for mol,
-            coords in self.positions.items()}
-        self.original_positions = {
-            mol: geometry.rotate(
-                coords,
-                x=state['rot'][0],
-                y=state['rot'][1]) for mol,
-            coords in self.original_positions.items()}
+        self.positions = {mol: geometry.rotate(coords, x=state['rot'][0], y=state['rot'][1]) for mol, coords in self.positions.items()}
+        self.original_positions = {mol: geometry.rotate(coords, x=state['rot'][0], y=state['rot'][1]) for mol, coords in self.original_positions.items()}
         for inf in self.molinfo:
             if 'normalmode' in inf:
-                inf['normalmode'] = geometry.rotate(
-                    inf['normalmode'], x=state['rot'][0], y=state['rot'][1])
+                inf['normalmode'] = geometry.rotate(inf['normalmode'], x=state['rot'][0], y=state['rot'][1])
+            if 'cub' in inf:
+                inf['cub'][0] = geometry.rotate(inf['cub'][0], x=-state['rot'][0], y=state['rot'][1])
+                self.draw_pixels(*inf['cub'])
+
         self._prepare_molecule_surf(state['molidx'])
+
 
         # draw some text
         if not self.no_text:
@@ -703,3 +691,9 @@ class Screen:
 
     def draw_axes(self, surf):
         ...
+
+    def draw_pixels(self, poss, colors):
+        poss_ = self.project(poss)
+        for pos, pos_, c in zip(poss, poss_, colors):
+            # self.molecule_surf.set_at(pos, c)
+            pg.draw.circle(self.molecule_surf, c, pos_, 2)

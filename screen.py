@@ -380,8 +380,13 @@ class Screen:
                 pg.draw.circle(self.molecule_surf, atcolours[i], a, r[i])
             else:
                 atom_img = self.atom_imgs[molidx][n]
-                atom_img = pg.transform.scale(
-                    atom_img, (int(r[i] * 2), int(r[i] * 2)))
+                if int(r[i] * 2) * int(r[i] * 2) > 300_000:
+                    continue
+                if int(r[i] * 2) * int(r[i] * 2) > 100_000:
+                    f = 1 - (int(r[i] * 2) * int(r[i] * 2) - 100_000)/200_000
+                    atom_img.set_alpha(f*255)
+                
+                atom_img = pg.transform.scale(atom_img, (int(r[i] * 2), int(r[i] * 2)))
                 blits.append((atom_img, a - r[i]))
 
         # moving on to bonds
@@ -429,9 +434,13 @@ class Screen:
                             n1, n2)].copy()
 
                     new_scale = (max(1, new_scale[0]), max(1, new_scale[1]))
+                    if new_scale[0] * new_scale[1] > 300_000:
+                        continue
+                    if new_scale[0] * new_scale[1] > 100_000:
+                        f = 1 - (new_scale[0] * new_scale[1] - 100_000)/200_000
+                        bond_img.set_alpha(f*255)
                     if smooth_bonds:
-                        bond_img = pg.transform.smoothscale(
-                            bond_img, new_scale)
+                        bond_img = pg.transform.smoothscale(bond_img, new_scale)
                     else:
                         bond_img = pg.transform.scale(bond_img, new_scale)
 
@@ -515,8 +524,8 @@ class Screen:
                 inf['normalmode'] = geometry.rotate(inf['normalmode'], x=state['rot'][0], y=state['rot'][1])
             if 'cub' in inf:
                 inf['cub'][0] = geometry.rotate(inf['cub'][0], x=-state['rot'][0], y=state['rot'][1])
-                self.draw_pixels(*inf['cub'])
-
+        
+        self.draw_pixels(*self.molinfo[state['molidx']]['cub'])
         self._prepare_molecule_surf(state['molidx'])
 
 

@@ -702,7 +702,11 @@ class Screen:
         ...
 
     def draw_pixels(self, poss, colors):
+        poss = poss + np.random.randn(*poss.shape)/50
+        r = (poss - (*self.camera_position, self.camera_z))
+        dist_to_cam = np.sqrt(np.sum(r**2, axis=1))
+        dist_idx = np.argsort(-dist_to_cam)
         poss_ = self.project(poss)
-        for pos, pos_, c in zip(poss, poss_, colors):
+        for pos, c in zip(poss_[dist_idx], colors[dist_idx]):
             # self.molecule_surf.set_at(pos, c)
-            pg.draw.circle(self.molecule_surf, c, pos_, 2)
+            pg.draw.circle(self.molecule_surf, c, pos, 4)

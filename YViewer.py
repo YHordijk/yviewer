@@ -114,4 +114,4 @@ if __name__ == '__main__':
     # cube[0] = cube[0] - np.mean(cube[0], axis=0)
     cube = read_cub(r"C:\Users\Yuman\Downloads\test%SCF_A%69.cub")
 
-    show(mol, molinfo=[{'cub': cube}], simple=False, background_color=(25, 25, 25))
+    show(simple=False, background_color=(25, 25, 25))

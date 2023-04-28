@@ -525,7 +525,8 @@ class Screen:
             if 'cub' in inf:
                 inf['cub'][0] = geometry.rotate(inf['cub'][0], x=-state['rot'][0], y=state['rot'][1])
         
-        self.draw_pixels(*self.molinfo[state['molidx']]['cub'])
+        if 'cub' in self.molinfo[state['molidx']]:
+            self.draw_pixels(*self.molinfo[state['molidx']]['cub'])
         self._prepare_molecule_surf(state['molidx'])
 
 

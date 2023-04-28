@@ -525,10 +525,9 @@ class Screen:
             if 'cub' in inf:
                 inf['cub'][0] = geometry.rotate(inf['cub'][0], x=-state['rot'][0], y=state['rot'][1])
         
-        if 'cub' in self.molinfo[state['molidx']]:
+        if len(self.molinfo) > 0 and 'cub' in self.molinfo[state['molidx']]:
             self.draw_pixels(*self.molinfo[state['molidx']]['cub'])
         self._prepare_molecule_surf(state['molidx'])
-
 
         # draw some text
         if not self.no_text:
@@ -567,7 +566,7 @@ class Screen:
                     else:
                         freq = ''
                     text = font.render(
-                        f'Press [SPACE] to visualize imaginary mode {freq}', True, (255, 255, 255, 255))
+                        f'Press [SPACE] to visualize lowest mode {freq}', True, (255, 255, 255, 255))
                     self.molecule_surf.blit(
                         text, (self.size[0] - 500, self.size[1] - 40))
             except BaseException:

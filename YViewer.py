@@ -1,6 +1,7 @@
 import os
-import screen as screen
+import screen
 import pygame as pg
+from yviewer.utility import paths
 from scm import plams
 pg.display.set_icon(pg.image.load('icon.tiff'))
 import matplotlib.pyplot as plt
@@ -9,6 +10,8 @@ import numpy as np
 # pdb.set_trace() 
 
 j = os.path.join
+
+pg.display.set_icon(pg.image.load(j(paths.base, 'icon.tiff')))
 
 
 def show(mols=[], molinfo=None, simple=False, debug=False, background_color=(25, 25, 25), hide_hydrogens=False):

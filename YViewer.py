@@ -103,15 +103,4 @@ def read_cub(file):
 
 
 if __name__ == '__main__':
-    mol = plams.Molecule(r"D:\Users\Yuman\Desktop\PhD\LewisAcid_coordination\calculations_final\EDA_vacuum\I2_N_pi\full\output.xyz")
-    # mol = plams.Molecule()
-    # mol.add_atom(plams.Atom(symbol='H', coords=[1, 1, 1]))
-    mol.guess_bonds()
-
-    # cube = [np.array([[1,1,1], [1,-1,1], [1,-1,-1], [1,1,-1], [-1,1,1], [-1,-1,1], [-1,-1,-1], [-1,1,-1]]), 
-    #         np.array([[255, 255, 255]]*8)]
-    # cube[0] = cube[0] + np.array([1, 1, 1])
-    # cube[0] = cube[0] - np.mean(cube[0], axis=0)
-    cube = read_cub(r"C:\Users\Yuman\Downloads\test%SCF_A%69.cub")
-
     show(simple=False, background_color=(25, 25, 25))

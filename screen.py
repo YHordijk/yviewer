@@ -26,12 +26,12 @@ class Screen:
         self.background_color = kwargs.get('background_color', (25, 25, 25))
         self.headless = kwargs.get('headless', False)
         pg.display.init()
-        if not self.headless:
-            self.main_display = pg.display.set_mode(self.size, pg.locals.HWSURFACE | pg.locals.DOUBLEBUF | pg.locals.RESIZABLE)
-            self.molecule_surf = pg.surface.Surface(self.size, pg.locals.HWSURFACE | pg.locals.DOUBLEBUF | pg.locals.RESIZABLE | pg.locals.SRCALPHA).convert()
-        else:
-            self.main_display = pg.display.set_mode(self.size)
-            self.molecule_surf = pg.surface.Surface(self.size).convert()
+        # if not self.headless:
+        self.main_display = pg.display.set_mode(self.size, pg.locals.HWSURFACE | pg.locals.DOUBLEBUF | pg.locals.RESIZABLE)
+        self.molecule_surf = pg.surface.Surface(self.size, pg.locals.HWSURFACE | pg.locals.DOUBLEBUF | pg.locals.RESIZABLE)
+        # else:
+        #     self.main_display = pg.display.set_mode(self.size, pg.locals.SRCALPHA)
+        #     self.molecule_surf = pg.surface.Surface(self.size, pg.locals.SRCALPHA).convert()
         self.camera_position = [0, 0]
         self.camera_orientation = [0, 0, 0]
         self.camera_z = 6
@@ -40,6 +40,7 @@ class Screen:
         self.draw_mode = 'normal'
         self.texts = kwargs.get('texts', [])
         self.hide_hydrogens = kwargs.get('hide_hydrogens', False)
+        self.init_options = {'zoom': kwargs.get('zoom'), 'rotation': kwargs.get('rotation')}
         self.set_projection_plane()
 
     def add_mol(self, mol, molinfo=None):
@@ -482,8 +483,8 @@ class Screen:
     def init_loop(self, state):
         pg.init()
         pg.font.init()
-        state['rot'] = np.array([0, 0])
-        state['rotation'] = np.array([0, 0])
+        state['rot'] = np.array(self.init_options['rotation'] or [0, 0])
+        state['rotation'] = np.array(self.init_options['zoom'] or [0, 0])
         state['zoom'] = 0
         state['fpss'] = []
         state['fps_num'] = 100

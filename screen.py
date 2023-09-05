@@ -1,10 +1,7 @@
 import pygame as pg
 import pygame.locals
 import numpy as np
-try:
-    import data
-except ImportError:
-    from yviewer import data
+from yviewer import data
 import periodictable as pt
 import skimage.draw
 import matplotlib.pyplot as plt

@@ -34,21 +34,22 @@ def show(mols=[], molinfo=None, simple=False, debug=False, background_color=(25,
 #     scr.draw_molecules(mols, loop=False)
 
 
-def screen_shot_mols(mols, files=None, simple=False, background_color=(25, 25, 25), overwrite=True, zoom=None, rotation=None):
+def screen_shot_mols(mols, files=None, molinfo=None, simple=False, background_color=(25, 25, 25), overwrite=True, zoom=None, rotation=None):
     os.environ['SDL_VIDEODRIVER'] = 'dummy'
     os.environ['SDL_AUDIODRIVER'] = 'dsp'
     if not isinstance(mols, list):
         mols = [mols]
 
-    scr = screen.Screen(size=(1600, 900), background_color=background_color, headless=True, rotation=rotation, zoom=zoom)
+    scr = screen.Screen(size=(1280, 720), background_color=background_color, headless=True, rotation=rotation, zoom=zoom)
     
     if simple:
         scr.draw_mode = 'simple'
+
     for i, mol in enumerate(mols):
         try:
             if not overwrite and os.path.exists(files[i]):
                 continue
-            scr.draw_molecules([mol], loop=False, no_text=True)
+            scr.draw_molecules([mol], [molinfo[i]], loop=False, no_text=True)
             pg.image.save(scr.main_display, files[i])
         except BaseException:
             raise

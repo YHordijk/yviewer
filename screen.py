@@ -22,6 +22,7 @@ class Screen:
         self.size = kwargs.get('size', (500, 300))
         self.background_color = kwargs.get('background_color', (25, 25, 25))
         self.headless = kwargs.get('headless', False)
+        self.projection_mode = kwargs.get('projection_mode', 'perspective')
         pg.display.init()
         # if not self.headless:
         self.main_display = pg.display.set_mode(self.size, pg.locals.HWSURFACE | pg.locals.DOUBLEBUF | pg.locals.RESIZABLE)
@@ -42,8 +43,8 @@ class Screen:
 
     def add_mol(self, mol, molinfo=None):
         self.prepare_atom_bonds_imgs(mol)
-        self.positions[mol] = geometry.center_mol(np.array([atom.coords for atom in mol.atoms]))
-        self.original_positions[mol] = geometry.center_mol(np.array([atom.coords for atom in mol.atoms]))
+        self.positions[mol] = np.array([atom.coords for atom in mol.atoms])
+        self.original_positions[mol] = np.array([atom.coords for atom in mol.atoms])
         self.bond_tuples[mol] = self.get_bond_tuples(mol)
         if molinfo is None:
             molinfo = {}
@@ -230,10 +231,7 @@ class Screen:
         return R
 
     def project(self, points, settings={}):
-        sg = settings.get
-        mode = sg('projection_mode', 'perspective')
-
-        if mode == 'orthographic':
+        if self.projection_mode == 'orthographic':
             if len(points.shape) == 1:
                 points = points[0:2]
             else:
@@ -241,10 +239,11 @@ class Screen:
             return np.hstack(((points * 100 + self.camera_position).T,
                              (points * 100 + self.camera_position).T)).T.astype(int)
 
-        if mode == 'perspective':
+        if self.projection_mode == 'perspective':
             d = self.get_rotation_matrix(*self.camera_orientation) @ (points - np.asarray([*self.camera_position, self.camera_z])).T
             f = self.projection_plane @ d
-            return np.vstack((f[0] / f[2], f[1] / f[2])).T.astype(int)
+            x, y = f[0] / f[2], f[1] / f[2]
+            return np.vstack([self.size[0] - x, y]).T.astype(int)
 
     def set_projection_plane(self):
         e = np.array([self.size[0] / 2, self.size[1] / 2, 600])
@@ -275,6 +274,7 @@ class Screen:
         self.no_text = no_text
         self.update_funcs = update_funcs
         state = {}
+        state['self'] = self
         state['run'] = True
         state['molidx'] = 0
         state['mols'] = self.mols
@@ -348,7 +348,7 @@ class Screen:
 
         blits = []
         pos = self.positions[mol].copy()
-        pos[:, 1] *= -1
+        # pos[:, 1] *= -1
         dist_to_cam = np.sqrt(np.sum((pos - (*self.camera_position, self.camera_z))**2, axis=1))
         idx = np.argsort(dist_to_cam)[::-1]
         atn = [atom.atnum for atom in mol.atoms]
@@ -509,7 +509,6 @@ class Screen:
 
     @timer.time
     def update(self, state):
-        [func(state) for func in self.update_funcs]
         # if hasattr(state['main_mol'], 'frames'):
         #   i = state.get('mol_frame_i', 0)
         #   i = i % len(state['main_mol'].frames)
@@ -521,7 +520,7 @@ class Screen:
             if 'normalmode' in inf:
                 inf['normalmode'] = geometry.rotate(inf['normalmode'], x=state['rot'][0], y=state['rot'][1])
             if 'cub' in inf:
-                inf['cub'][0] = geometry.rotate(inf['cub'][0], x=-state['rot'][0], y=state['rot'][1])
+                inf['cub'][0] = geometry.rotate(inf['cub'][0], x=state['rot'][0], y=state['rot'][1])
         
         if len(self.molinfo) > 0 and 'cub' in self.molinfo[state['molidx']]:
             self.draw_pixels(*self.molinfo[state['molidx']]['cub'])
@@ -577,6 +576,9 @@ class Screen:
                     self.molecule_surf.blit(text, (self.size[0] - 130, 20))
             except BaseException:
                 pass
+
+        [func(state) for func in self.update_funcs]
+
 
     @timer.time
     def post_update(self, state):
@@ -659,7 +661,7 @@ class Screen:
             self.camera_position[1] += move[1] / 100
 
         if pg.mouse.get_pressed()[0]:
-            state['rot'] = np.array([-move[1] / 150, -move[0] / 150])
+            state['rot'] = np.array([move[1] / 150, move[0] / 150])
 
         if state['keys'][pg.K_LEFT] and not state['prev_keys'][pg.K_LEFT]:
             state['molidx'] -= 1
@@ -705,6 +707,8 @@ class Screen:
         dist_to_cam = np.sqrt(np.sum(r**2, axis=1))
         dist_idx = np.argsort(-dist_to_cam)
         poss_ = self.project(poss)
+        # print(dist_idx.shape, poss_.shape, colors.shape)
+
         for pos, c in zip(poss_[dist_idx], colors[dist_idx]):
             # self.molecule_surf.set_at(pos, c)
             pg.draw.circle(self.molecule_surf, c, pos, 4)

@@ -118,13 +118,12 @@ class Screen:
             a = gauss * bond_img
             a = ((a - a.min()) / a.max() * 255).astype(int)  # normalize
 
-            pg.pixelcopy.array_to_surface(
-                surf_half, a + a * 256 + a * 256 * 256 + a * 256 * 256 * 256)
+            pg.pixelcopy.array_to_surface(surf_half, a + a * 256 + a * 256 * 256 + a * 256 * 256 * 256)
             surf1 = surf_half.copy()
             surf2 = surf_half.copy()
 
-            surf1.fill(c1, special_flags=pg.locals.BLEND_RGB_MULT)
-            surf2.fill(c2, special_flags=pg.locals.BLEND_RGB_MULT)
+            surf1.fill(c1, special_flags=pg.locals.BLEND_RGB_ADD)
+            surf2.fill(c2, special_flags=pg.locals.BLEND_RGB_ADD)
 
             surf.blit(surf1, (0, 0))
             surf.blit(surf2, (0, size[1] // 2))
@@ -597,6 +596,7 @@ class Screen:
         # self.camera_position = [sin(state['time']*10), cos(state['time']*10)]
         state['prev_keys'] = state['keys']
 
+
     @timer.time
     def handle_events(self, state):
         def start_mode_animation():
@@ -618,6 +618,19 @@ class Screen:
         def paste_atoms():
             data = pyperclip.paste().replace('\\n', '\n')
             lines = [line for line in data.splitlines() if len(line.split()) >= 4]
+
+            mol = plams.Molecule()
+            for line in lines:
+                el, x, y, z = line.split()[:4]
+                mol.add_atom(plams.Atom(symbol=el, coords=(x, y, z)))
+            mol.guess_bonds()
+            self.add_mol(mol)
+            if len(self.mols) > 1:
+                state['molidx'] += 1
+
+        def get_dropped_file(path):
+            with open(path) as xyz:
+                lines = [line for line in xyz.readlines() if len(line.split()) >= 4]
 
             mol = plams.Molecule()
             for line in lines:
@@ -650,6 +663,10 @@ class Screen:
                     state['zoom'] = -state['dT'] * self.camera_z * 10
                 elif e.button == 5:
                     state['zoom'] = state['dT'] * self.camera_z * 10
+
+            elif e.type == pg.DROPFILE:
+                get_dropped_file(e.file)
+
 
         # print(state['zoom'], state['dT'])
         self.camera_z += state['zoom']

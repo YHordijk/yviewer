@@ -59,7 +59,7 @@ class Screen:
         self.molinfo.pop(molidx)
         self.mols.pop(molidx)
 
-    @timer.time
+    @timer.Time
     def prepare_atom_bonds_imgs(self, mol, pos=(.3, .3)):
         def gaussian(size, pos, m, one_dim=False):
             x, y = np.meshgrid(np.linspace(0, 1, size[1]) - pos[0], np.linspace(0, 1, size[0]) - pos[1])
@@ -295,8 +295,9 @@ class Screen:
             self.update(state)
             self.post_update(state)
 
-            with timer.Timer('blit and update'):
+            with timer.Timer('Screen.draw_molecules.blit'):
                 md.blit(ms, (0, 0))
+            with timer.Timer('Screen.draw_molecules.update'):
                 pg.display.update()
 
             if not loop:
@@ -492,7 +493,7 @@ class Screen:
         state['normalmode_displacement'] = 0
         state['normalmode_animation_start_time'] = 0
 
-    @timer.time
+    @timer.Time
     def pre_update(self, state):
         state['start_time'] = perf_counter()
         state['keys'] = pg.key.get_pressed()
@@ -506,7 +507,7 @@ class Screen:
             self.positions[self.mols[state['molidx']]] = list(self.original_positions.values())[
                 state['molidx']] + state['normalmode_displacement'] * nm
 
-    @timer.time
+    @timer.Time
     def update(self, state):
         # if hasattr(state['main_mol'], 'frames'):
         #   i = state.get('mol_frame_i', 0)
@@ -520,9 +521,9 @@ class Screen:
                 inf['normalmode'] = geometry.rotate(inf['normalmode'], x=state['rot'][0], y=state['rot'][1])
             if 'cub' in inf:
                 inf['cub'][0] = geometry.rotate(inf['cub'][0], x=state['rot'][0], y=state['rot'][1])
-        
-        if len(self.molinfo) > 0 and 'cub' in self.molinfo[state['molidx']]:
-            self.draw_pixels(*self.molinfo[state['molidx']]['cub'])
+        with timer.Timer('Screen.update.draw_pixels'):
+            if len(self.molinfo) > 0 and 'cub' in self.molinfo[state['molidx']]:
+                self.draw_pixels(*self.molinfo[state['molidx']]['cub'])
         self._prepare_molecule_surf(state['molidx'])
 
         # draw some text
@@ -579,7 +580,7 @@ class Screen:
         [func(state) for func in self.update_funcs]
 
 
-    @timer.time
+    @timer.Time
     def post_update(self, state):
         state['rotation'] = state['rotation'] + state['rot']
         state['rot'] = state['rot'] * 0.8
@@ -597,7 +598,7 @@ class Screen:
         state['prev_keys'] = state['keys']
 
 
-    @timer.time
+    @timer.Time
     def handle_events(self, state):
         def start_mode_animation():
             state['normalmode_animation'] = True

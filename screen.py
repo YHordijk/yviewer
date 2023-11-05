@@ -719,8 +719,8 @@ class Screen:
     def draw_axes(self, surf):
         ...
 
-    def draw_pixels(self, poss, colors):
-        poss = poss + np.random.randn(*poss.shape)/50
+    def draw_pixels(self, poss, colors, random_intensity=0):
+        poss = poss + np.random.randn(*poss.shape)*random_intensity
         r = (poss - (*self.camera_position, self.camera_z))
         dist_to_cam = np.sqrt(np.sum(r**2, axis=1))
         dist_idx = np.argsort(-dist_to_cam)

@@ -59,7 +59,7 @@ class Screen:
         self.molinfo.pop(molidx)
         self.mols.pop(molidx)
 
-    @timer.Time
+    
     def prepare_atom_bonds_imgs(self, mol, pos=(.3, .3)):
         def gaussian(size, pos, m, one_dim=False):
             x, y = np.meshgrid(np.linspace(0, 1, size[1]) - pos[0], np.linspace(0, 1, size[0]) - pos[1])
@@ -493,7 +493,7 @@ class Screen:
         state['normalmode_displacement'] = 0
         state['normalmode_animation_start_time'] = 0
 
-    @timer.Time
+    
     def pre_update(self, state):
         state['start_time'] = perf_counter()
         state['keys'] = pg.key.get_pressed()
@@ -507,7 +507,7 @@ class Screen:
             self.positions[self.mols[state['molidx']]] = list(self.original_positions.values())[
                 state['molidx']] + state['normalmode_displacement'] * nm
 
-    @timer.Time
+    
     def update(self, state):
         # if hasattr(state['main_mol'], 'frames'):
         #   i = state.get('mol_frame_i', 0)
@@ -580,7 +580,7 @@ class Screen:
         [func(state) for func in self.update_funcs]
 
 
-    @timer.Time
+    
     def post_update(self, state):
         state['rotation'] = state['rotation'] + state['rot']
         state['rot'] = state['rot'] * 0.8
@@ -598,7 +598,7 @@ class Screen:
         state['prev_keys'] = state['keys']
 
 
-    @timer.Time
+    
     def handle_events(self, state):
         def start_mode_animation():
             state['normalmode_animation'] = True
